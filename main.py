@@ -6,94 +6,111 @@ import pandas as pd
 from matplotlib import gridspec
 
 
-def maskCreation(inputImage, numberParts, gemGrupp):
-    mask = cv2.inRange(inputImage, (140,140,140), (255,255,255))
+def maskCreation2(inputImage, numberParts, gemGrupp):
+    # разбиение изображения на каналы
+    (bbb,ggg,rrr) = cv2.split(inputImage)
 
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10)))
-    mask = cv2.bitwise_not(mask)
+    # Подготовка каждого канала
+    bbb = cv2.adaptiveThreshold(bbb, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 55, 7)
+    bbb = cv2.dilate(bbb, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1)))
+    bbb = cv2.erode(bbb, cv2.getStructuringElement(cv2.MORPH_RECT, (1,1)))
 
+    ggg = cv2.adaptiveThreshold(ggg, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 55, 7)
+    ggg = cv2.dilate(ggg, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1)))
+    ggg = cv2.erode(ggg, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1)))
 
-    one = [0, 0]
-    rows, cols = mask.shape
-    temp = 0
-    flag = False
+    rrr = cv2.adaptiveThreshold(rrr, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 55, 7)
+    rrr = cv2.dilate(rrr, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1)))
+    rrr = cv2.erode(rrr, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1)))
 
-    for i in range(rows):
-        for j in range(cols):
-            temp = mask[i, j]
-            if temp == 255:
-                flag = True
-                one[0] = i
-                one[1] = j
-                break
+    # объединение 3х каналов в один
+    temp = cv2.bitwise_and(bbb, bbb, mask=ggg)
+    temp = cv2.bitwise_and(temp, temp, mask=rrr)
 
-        if flag == True:
-            break
+    rows = temp.shape[0]
+    mask = np.zeros((1080, 1920, 1), np.uint8)
+    # поиск кругов (камня)
+    circles = cv2.HoughCircles(temp, cv2.HOUGH_GRADIENT, 1, rows,
+                              param1=150, param2=40,
+                              minRadius=200, maxRadius=500)
+    # создание маски по найденному кругу
+    circles = np.uint16(np.around(circles))
+    i = circles[0, 0]
+    center = (i[0], i[1])
+    radius = i[2]
+    cv2.circle(mask, center, radius - 30, 255, cv2.FILLED, 8, 0)
 
-    two = [0, 0]
-    flag = False
-    for i in range(cols):
-        for j in range(rows):
-            temp = mask[j, i]
-            if temp == 255:
-                flag = True
-                two[0] = j
-                two[1] = i
-                break
+    cv2.imshow("gem", mask)
+    cv2.waitKey()
 
-        if flag == True:
-            break
+    gemAndMask = cv2.bitwise_and(inputImage, inputImage, mask=mask)
 
-    three = [0, 0]
-    flag = False
-    i = 1
-    for i in range(1, rows + 1):
-        for j in range(cols):
-            temp = mask[rows - i, j]
-            if temp == 255:
-                flag = True
-                three[0] = rows - i
-                three[1] = j
-                break
+    cv2.imshow("gem", gemAndMask)
+    cv2.waitKey()
 
-        if flag == True:
-            break
-
-    four = [0, 0]
-    flag = False
-    i = 1
-    for i in range(1, cols + 1):
-        for j in range(rows):
-            temp = mask[j, cols - i]
-            if temp == 255:
-                flag = True
-                four[0] = j
-                four[1] = cols - i
-                break
-
-        if flag == True:
-            break
-
-    print("точка 1: ", one[0], " ", one[1])
-    print("точка 2: ", two[0], " ", two[1])
-    print("точка 3: ", three[0], " ", three[1])
-    print("точка 4: ", four[0], " ", four[1])
-
-    x = (int)((one[1] + three[1]) / 2)
-    y = (int)((two[0] + four[0]) / 2)
-
-    print("центр: ", x, " ", y)
-    radius = (int)(y - one[0] - 30)
-
-    newMask = np.zeros((1080, 1920, 1), np.uint8)
-
-    cv2.circle(newMask, (x,y), radius, 255, cv2.FILLED, 8, 0)
-    gemAndMask = cv2.bitwise_and(inputImage, inputImage, mask=newMask)
-
-    palet = paletteCreation(gemAndMask, numberParts, y, x, radius)
-
-    vector = vectorCreation(palet, numberParts, y, x, radius, gemGrupp)
+    # создание палитры
+    palet = paletteCreation(gemAndMask, numberParts, i[1], i[0], radius)
+    # создание вектора
+    vector = vectorCreation(palet, numberParts, radius, gemGrupp)
     return vector
+
+
+
+"""
+Создание вектора из палитры 2х уровней
+Параметры:  palette - палитра готовых цветов (круг с основными цветами)
+            numberParts - количество кластеров
+            centerX, centerY, radius - координаты центра палитры и радиус
+            gemGrupp - номер группы камней
+"""
+def vectorCreation2(palette, numberParts, radius, gemGrupp):
+    # cv2.imshow("palet", palette)
+    # cv2.waitKey()
+
+    paletHSV = cv2.cvtColor(palette, cv2.COLOR_BGR2HSV)
+    alpha = int(360 / numberParts)
+    startAngle = alpha/2 + 2
+    endAngle = alpha + startAngle
+
+    centerY = int(1920/ 2)
+    centerX = int(1080 / 2)
+
+    r1 = 150
+    r2 = 350
+    vector = []
+
+    vector.append('{0}'.format(gemGrupp))
+
+    for i in range(numberParts):
+        x = int(centerX + r1 * math.sin(((startAngle + endAngle) / 2) * math.pi / 180))
+        y = int(centerY + r1 * math.cos(((startAngle + endAngle) / 2) * math.pi / 180))
+        cv2.circle(palette, (centerY, centerX), 15, (0, 0, 255), 3, cv2.LINE_AA)
+        cv2.circle(palette, (y,x), 15, (255,255,255), 3, cv2.LINE_AA)
+        h, s, v = np.uint8(paletHSV[x, y])
+
+        colorCode = 1000000 * h + 1000 * s + v
+        vector.append('{0}'.format(colorCode))
+        startAngle = startAngle + alpha
+        endAngle = endAngle + alpha
+
+    for i in range(numberParts):
+        x = int(centerX + r2 * math.sin(((startAngle + endAngle) / 2) * math.pi / 180))
+        y = int(centerY + r2 * math.cos(((startAngle + endAngle) / 2) * math.pi / 180))
+        cv2.circle(palette, (centerY, centerX), 15, (0, 0, 255), 3, cv2.LINE_AA)
+        cv2.circle(palette, (y,x), 15, (255,255,255), 3, cv2.LINE_AA)
+        h, s, v = np.uint8(paletHSV[x, y])
+        colorCode = 1000000 * h + 1000 * s + v
+        vector.append('{0}'.format(colorCode))
+        startAngle = startAngle + alpha
+        endAngle = endAngle + alpha
+
+    #cv2.imshow("palet", palette)
+    #cv2.waitKey()
+    return vector
+
+
+
+
 
 
 """
@@ -102,7 +119,62 @@ def maskCreation(inputImage, numberParts, gemGrupp):
             numberParts - количесто кластеров
             centerX, centerY, radius - центр камня и его размер
 """
+def paletteCreation2(inputImage, numberParts, centerX, centerY, radius):
+    print("создание палитры")
+    palette = np.zeros((1080, 1920, 3), np.uint8)
+
+    alpha = int(360 / numberParts)
+    startAngle = 0
+    endAngle = alpha
+
+    center = [int(1920 / 2), int(1080 / 2)]
+    size = [400, 400]
+    angle = 0
+
+    x = 0
+    y = 0
+    r1 = int(radius / 4)
+    r2 = int(radius - radius / 6)
+    newR1 = r1
+    newR2 = r2
+    axes1 = (400, 400)
+    axes2 = (200, 200)
+
+
+    for i in range(numberParts):
+        x = int(centerX + newR1 * math.sin(((startAngle + endAngle) / 2) * math.pi / 180))
+        y = int(centerY + newR1 * math.cos(((startAngle + endAngle) / 2) * math.pi / 180))
+
+        b, g, r = np.uint8(inputImage[x, y])
+
+        cv2.ellipse(palette, (center[0], center[1]), axes1, 0, int(startAngle), int(endAngle), (int(b), int(g), int(r)),-1)
+        startAngle = startAngle + alpha
+        endAngle = endAngle + alpha
+
+    #cv2.imshow("palet1", palette)
+    #cv2.waitKey()
+
+    for i in range(numberParts):
+        x = int(centerX + newR2 * math.sin(((startAngle + endAngle) / 2) * math.pi / 180))
+        y = int(centerY + newR2 * math.cos(((startAngle + endAngle) / 2) * math.pi / 180))
+
+        b, g, r = np.uint8(inputImage[x, y])
+        cv2.ellipse(palette, (center[0], center[1]), axes2, 0, int(startAngle), int(endAngle), (int(b), int(g), int(r)), -1)
+        startAngle = startAngle + alpha
+        endAngle = endAngle + alpha
+
+    cv2.imshow("palet1", palette)
+    cv2.waitKey()
+
+    return palette
+
+
+
+
+
+
 def paletteCreation(inputImage, numberParts, centerX, centerY, radius):
+    print("создание палитры")
     palette = np.zeros((1080, 1920, 3), np.uint8)
 
     alpha = int(360 / numberParts)
@@ -119,32 +191,16 @@ def paletteCreation(inputImage, numberParts, centerX, centerY, radius):
     newR = r
     axes = (400, 400)
 
-    isBlack = True
-    black = 0
     for i in range(numberParts):
-        while isBlack == True:
-            x = int(centerX + newR * math.sin(((startAngle + endAngle) / 2) * math.pi / 180))
-            y = int(centerY + newR * math.cos(((startAngle + endAngle) / 2) * math.pi / 180))
+        x = int(centerX + newR * math.sin(((startAngle + endAngle) / 2) * math.pi / 180))
+        y = int(centerY + newR * math.cos(((startAngle + endAngle) / 2) * math.pi / 180))
 
-            b,g,r = np.uint8(inputImage[x,y])
-            black = b + g + r
-
-            if black == 0:
-                isBlack = True
-                newR = newR + 50
-            else:
-                isBlack = False
-                black = 0
-                newR = r
-
-            if newR > r:
-                newR = 10
-
-        isBlack = True
+        b,g,r = np.uint8(inputImage[x,y])
         cv2.ellipse(palette, (center[0], center[1]), axes, 0, int(startAngle), int(endAngle), (int(b), int(g), int(r)), -1)
         startAngle = startAngle + alpha
         endAngle = endAngle + alpha
-
+    cv2.imshow("palet1", palette)
+    cv2.waitKey()
     return palette
 
 
@@ -155,14 +211,19 @@ def paletteCreation(inputImage, numberParts, centerX, centerY, radius):
             centerX, centerY, radius - координаты центра палитры и радиус
             gemGrupp - номер группы камней
 """
-def vectorCreation(palette, numberParts, centerX, centerY, radius, gemGrupp):
+def vectorCreation(palette, numberParts, radius, gemGrupp):
+    # cv2.imshow("palet", palette)
+    # cv2.waitKey()
+
     paletHSV = cv2.cvtColor(palette, cv2.COLOR_BGR2HSV)
     alpha = int(360 / numberParts)
-    startAngle = alpha/2
+    startAngle = alpha/2 + 2
     endAngle = alpha + startAngle
 
+    centerY = int(1920/ 2)
+    centerX = int(1080 / 2)
 
-    r = int(radius / 2)
+    r = 150
     vector = []
 
     vector.append('{0}'.format(gemGrupp))
@@ -170,12 +231,19 @@ def vectorCreation(palette, numberParts, centerX, centerY, radius, gemGrupp):
     for i in range(numberParts):
         x = int(centerX + r * math.sin(((startAngle + endAngle) / 2) * math.pi / 180))
         y = int(centerY + r * math.cos(((startAngle + endAngle) / 2) * math.pi / 180))
+        cv2.circle(palette, (centerY, centerX), 15, (0, 0, 255), 3, cv2.LINE_AA)
+        cv2.circle(palette, (y,x), 15, (255,255,255), 3, cv2.LINE_AA)
         h, s, v = np.uint8(paletHSV[x, y])
+        print(h)
+        print(s)
+        print(v)
         colorCode = 1000000 * h + 1000 * s + v
         vector.append('{0}'.format(colorCode))
         startAngle = startAngle + alpha
         endAngle = endAngle + alpha
 
+    #cv2.imshow("palet", palette)
+    #cv2.waitKey()
     #print("vector")
     #print(vector)
     return vector
@@ -188,7 +256,8 @@ def vectorCreation(palette, numberParts, centerX, centerY, radius, gemGrupp):
 """
 def gruppCreation(nameImage, numberParts, gemGrupp):
     numberGem = len(nameImage)  # Определение количества входных имен
-
+    print("количество имен ")
+    print(numberGem)
     row = 0
     columns = []
 
@@ -199,60 +268,136 @@ def gruppCreation(nameImage, numberParts, gemGrupp):
     array = pd.DataFrame(columns=columns)
 
     for i in range(numberGem):
+        print("Шаг")
+        print(i)
         gem = cv2.imread(nameImage[i])
-        vector = maskCreation(gem, 4, 1)
+        vector = maskCreation2(gem, numberParts, gemGrupp)
 
         maxInd = numberParts + 1
         array.loc[row] = vector
         row = row + 1
-
-    print(array)
-
+    return array
 
 
+def gruppCreation2(nameImage, numberParts, gemGrupp):
+    numberGem = len(nameImage)  # Определение количества входных имен
+    row = 0
+    columns = []
 
-# main
+    # подготовка таблицы
+    for j in range(0, (numberParts) + 1):
+        columns.append('{0}'.format(j))
 
-nameOne = "./image/"
-nameTwo = ".jpg"
+    array = pd.DataFrame(columns=columns)
 
-name = []
-for i in range(1,3):
-    temp = nameOne + str(i) + nameTwo
-    name.append(temp)
+    for i in range(numberGem):
+        print("Шаг")
+        print(i)
+        gem = cv2.imread(nameImage[i])
+        vector = maskCreation2(gem, numberParts, gemGrupp)
 
-gruppCreation(name, 4, 1)
+        maxInd = numberParts + 1
+        array.loc[row] = vector
+        row = row + 1
+    return array
 
 
-"""
-A = [14, 15, 16, 17, 18]
-b = [19, 20, 21, 22, 23]
+
+
+
+# Тесты для Алины
 
 columns = []
 
-for i in range(0, 5):
-    columns.append('{0}'.format(i))
-    df = pd.DataFrame(columns=columns)
-row = 0
-a = []
-for i in range(0, 5):
-    a.append('{0}'.format(A[i]))
+    # подготовка таблицы
+for j in range(0, 10):
+    columns.append('{0}'.format(j))
 
-df.loc[row] = a
+array = pd.DataFrame(columns=columns)
+
+testVecctor = [1, 2, 111, 3, 4, 667, 7, 4, 6, 10]
+
+str0 = []
+str0.append('{0}'.format(t))
+str0.append('{0}'.format(x))
+
+# str0 = (t, x)
+
+for i in range(10):
+    array.loc[i] = testVecctor
+
+print(array)
+
+array.to_csv("./testForAlina.csv", index=None, header=True)
 
 
-print("test")
-print(df)
 
 
-df.to_csv("./test.csv", index=None, header=True)
+
+
+
+
 """
 
-"""
-gem = cv2.imread("./image/1.jpg")
-palette = maskCreation(gem, 4, 1)
-print("palette")
-print(palette)
+
+
+
+
+# otchet
+
+name = []
+name1 = "./inputImage/1_6.jpg"
+name.append(name1)
+
+ar = gruppCreation2(name, 4,1)
+
+
+# main
+klast = 4
+
+#Группа 1 
+nameOne = "./inputImage/1_"
+nameTwo = ".jpg"
+
+name = []
+for i in range(1,10):
+    temp = nameOne + str(i) + nameTwo
+    name.append(temp)
+
+
+array1 = gruppCreation2(name, klast, 1)
+print("конец 1")
+# array.to_csv("./grupp1_12.csv", index=None, header=True)
+
+# Группа 2 
+nameOne = "./inputImage/2_"
+nameTwo = ".jpg"
+name = []
+for i in range(1,10):
+    temp = nameOne + str(i) + nameTwo
+    name.append(temp)
+
+array2 = gruppCreation2(name, klast, 2)
+print("конец 2")
+
+
+# Группа 3 
+nameOne = "./inputImage/3_"
+nameTwo = ".jpg"
+name = []
+for i in range(1,10):
+    temp = nameOne + str(i) + nameTwo
+    name.append(temp)
+
+array3 = gruppCreation2(name, klast, 3)
+print("конец 3")
+
+
+
+tab4 = pd.concat((array1, array2, array3), ignore_index=True)
+print(tab4)
+
+tab4.to_csv("./24_clast.csv", index=None, header=True)
 
 
 """
