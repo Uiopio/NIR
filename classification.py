@@ -47,7 +47,7 @@ def testKNN(name):
     accuracy = []
     average_accuracy = []
     max_acc = [0,0,0,0,0]
-    for i in range(5):
+    for i in range(len(name)):
         tab = pd.read_csv(name[i])
         y = tab['0']
         tab.drop(['0'], axis=1, inplace=True)
@@ -56,9 +56,9 @@ def testKNN(name):
         accuracy.append(i)
         temp_max_acc = 0
         temp = 0
-        for j in range(10):
-            X_train, X_test, y_train, y_test = train_test_split(tab.values, y, test_size=0.5)
-            knn_clf = KNeighborsClassifier(n_neighbors=3, metric='manhattan')
+        for j in range(2000):
+            X_train, X_test, y_train, y_test = train_test_split(tab.values, y, test_size=0.8)
+            knn_clf = KNeighborsClassifier(n_neighbors=5, metric='manhattan')
             knn_clf.fit(X_train, y_train)
             predicted = knn_clf.predict(X_test)
             acc = accuracy_score(y_test, predicted)
@@ -69,7 +69,7 @@ def testKNN(name):
 
             temp = temp + acc
             accuracy.append(acc)
-        temp = temp / 10
+        temp = temp / 2000
         average_accuracy.append(temp)
 
     print("точность каждой итерации", accuracy)
@@ -78,33 +78,10 @@ def testKNN(name):
 
 
 
-"""
-name = []
-tab1 = "4_clast.csv"
-tab2 = "8_clast.csv"
-tab3 = "12_clast.csv"
-tab4 = "16_clast.csv"
-tab5 = "24_clast.csv"
-
-name.append(tab1)
-name.append(tab2)
-name.append(tab3)
-name.append(tab4)
-name.append(tab5)
-"""
 
 name = []
-tab1 = "2_2_clast.csv"
-tab2 = "4_2_clast.csv"
-tab3 = "8_2_clast.csv"
-tab4 = "12_2_clast.csv"
-tab5 = "16_2_clast.csv"
+name.append("result3.csv")
 
-name.append(tab1)
-name.append(tab2)
-name.append(tab3)
-name.append(tab4)
-name.append(tab5)
 
 
 

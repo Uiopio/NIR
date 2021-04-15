@@ -148,11 +148,25 @@ class Gem:
         temp = cv2.bitwise_and(b, b, mask=g)
         temp = cv2.bitwise_and(temp, temp, mask=r)
 
+        #cv2.imshow("temp", temp)
+        #cv2.waitKey()
+
         rows = temp.shape[0]
         mask = np.zeros((1080, 1920, 1), np.uint8)
 
         # поиск кругов (камня)
         circles = cv2.HoughCircles(temp, cv2.HOUGH_GRADIENT, 1, rows, param1=150, param2=40, minRadius=200, maxRadius=500)
+
+        while(np.any(circles == None)):
+            print("None")
+            temp = temp[83:(1080-83), 150:(1920-150)]
+            temp = cv2.resize(temp, (1920, 1080))
+
+            self.gemImage = self.gemImage[83:(1080-83), 150:(1920-150)]
+            self.gemImage = cv2.resize(self.gemImage, (1920, 1080))
+
+            circles = cv2.HoughCircles(temp, cv2.HOUGH_GRADIENT, 1, rows, param1=150, param2=40, minRadius=200,
+                                       maxRadius=500)
 
         # создание маски по найденному кругу
         circles = np.uint16(np.around(circles))
@@ -166,5 +180,6 @@ class Gem:
         cv2.circle(mask, center, radius - 30, 255, cv2.FILLED, 8, 0)
 
         gemAndMask = cv2.bitwise_and(self.gemImage, self.gemImage, mask=mask)
-
+        #cv2.imshow("gemAndMask", gemAndMask)
+        #cv2.waitKey()
         return gemAndMask

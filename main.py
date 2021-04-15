@@ -4,56 +4,51 @@ import math
 import time
 import pandas as pd
 from lib.gem import Gem
-
-
-
-
+import glob
 
 
 if __name__ == "__main__":
-
-
     startTime = time.time()
+    # количество папок\групп
+    numGroups = len(glob.glob('./down/*'))
 
-    # Группа 1
-    nameOne = "./inputImage/"
-    nameTwo = ".jpg"
-    name = []
-    for groupp in range(1, 4):
-        for i in range(1, 10):
-            temp = nameOne + str(groupp) + "_" + str(i) + nameTwo
-            name.append(temp)
-
-    print(name)
-
+    # Подготовка таблицы
     columns = []
-    for i in range(0, 9):
+    for i in range(0, 25):
         columns.append('{0}'.format(i))
 
     array = pd.DataFrame(columns=columns)
 
-    groupGem1_list = []
-    for i in range(0, 9):
-        groupGem1_list.append(Gem(gemId=1, numParts=4, inputImageGem=cv2.imread(name[i])))
-        groupGem1_list[i].returnVector()
-        array.loc[i] = groupGem1_list[i].gemColorVector
+    stroke = 0
 
-    groupGem2_list = []
-    for i in range(0, 9):
-        groupGem1_list.append(Gem(gemId=2, numParts=4, inputImageGem=cv2.imread(name[i])))
-        groupGem1_list[i + 9].returnVector()
-        array.loc[i + 9] = groupGem1_list[i+9].gemColorVector
+    for i in range(1, numGroups + 1):
+        path = './down/' + str(i) + '/*'
+        numGems = len(glob.glob(path))
 
-    groupGem3_list = []
-    for i in range(0, 9):
-        groupGem1_list.append(Gem(gemId=3, numParts=4, inputImageGem=cv2.imread(name[i])))
-        groupGem1_list[i + 18].returnVector()
-        array.loc[i + 18] = groupGem1_list[i +18].gemColorVector
+        nameOne = "./down/" + str(i)
+        nameTwo = ".jpg"
+        #name = []
+
+        for numImage in range(0, numGems):
+            stroke = stroke + 1
+            temp = nameOne + "/" + str(i) + "_" + str(numImage) + nameTwo
+            #name.append(temp)
+
+            gem = Gem(gemId= i, numParts=12, inputImageGem=cv2.imread(temp))
+            gem.returnVector()
+            array.loc[stroke] = gem.gemColorVector
+
+            print("numImage ", numImage)
+
+        #print(i)
 
 
-    array.to_csv("./result.csv", index=None, header=True)
-    print(time.time()- startTime)
+    array.to_csv("./result3.csv", index=None, header=True)
+    print(time.time() - startTime)
 
+
+
+#########################################################################################################
 
 
 
