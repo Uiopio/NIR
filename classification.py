@@ -43,22 +43,21 @@ def kNN():
 
 
 
-def testKNN(name):
+def testKNN(name, test_size, neighbors):
     accuracy = []
     average_accuracy = []
     max_acc = [0,0,0,0,0]
+
     for i in range(len(name)):
         tab = pd.read_csv(name[i])
         y = tab['0']
         tab.drop(['0'], axis=1, inplace=True)
 
-
-        accuracy.append(i)
         temp_max_acc = 0
         temp = 0
         for j in range(2000):
-            X_train, X_test, y_train, y_test = train_test_split(tab.values, y, test_size=0.8)
-            knn_clf = KNeighborsClassifier(n_neighbors=5, metric='manhattan')
+            X_train, X_test, y_train, y_test = train_test_split(tab.values, y, test_size=test_size)
+            knn_clf = KNeighborsClassifier(n_neighbors=neighbors, metric='manhattan')
             knn_clf.fit(X_train, y_train)
             predicted = knn_clf.predict(X_test)
             acc = accuracy_score(y_test, predicted)
@@ -72,7 +71,7 @@ def testKNN(name):
         temp = temp / 2000
         average_accuracy.append(temp)
 
-    print("точность каждой итерации", accuracy)
+    #print("точность каждой итерации", accuracy)
     print("средняя точность", average_accuracy)
     print("максимальная точноть", max_acc)
 
@@ -80,11 +79,14 @@ def testKNN(name):
 
 
 name = []
-name.append("result3.csv")
+name.append("RGB3_2.csv")
 
-
-
-
-testKNN(name)
+testKNN(name, test_size= 0.5, neighbors=1)
+print("_________________________________")
+testKNN(name, test_size= 0.5, neighbors=2)
+print("_________________________________")
+testKNN(name, test_size= 0.5, neighbors=3)
+print("_________________________________")
+testKNN(name, test_size= 0.5, neighbors=5)
 
 

@@ -12,9 +12,11 @@ if __name__ == "__main__":
     # количество папок\групп
     numGroups = len(glob.glob('./down/*'))
 
+    k = 12
+
     # Подготовка таблицы
     columns = []
-    for i in range(0, 25):
+    for i in range(0, (k*2+1)):
         columns.append('{0}'.format(i))
 
     array = pd.DataFrame(columns=columns)
@@ -34,8 +36,8 @@ if __name__ == "__main__":
             temp = nameOne + "/" + str(i) + "_" + str(numImage) + nameTwo
             #name.append(temp)
 
-            gem = Gem(gemId= i, numParts=12, inputImageGem=cv2.imread(temp))
-            gem.returnVector()
+            gem = Gem(gemId= i, numParts=k, inputImageGem=cv2.imread(temp))
+            gem.returnVectorRGB3()
             array.loc[stroke] = gem.gemColorVector
 
             print("numImage ", numImage)
@@ -43,7 +45,7 @@ if __name__ == "__main__":
         #print(i)
 
 
-    array.to_csv("./result3.csv", index=None, header=True)
+    array.to_csv("./RGB3_12.csv", index=None, header=True)
     print(time.time() - startTime)
 
 

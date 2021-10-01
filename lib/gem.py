@@ -3,17 +3,6 @@ import numpy as np
 import math
 import pandas as pd
 
-#class Gem:
-#    # Класс хранящий параметры одного камня
-#
-#    def __init__(self, gemId, inputImageGem):
-#        self.gemId = gemId # Номер группы камня. None если нужно определеит группу камня
-#        self.gemImage = inputImageGem # Изображение камня
-#        self.gemSize = None # Размер камня
-#        self.gemPosition = None
-#        self.gemColorVector = None # вектор цветов
-
-
 
 
 
@@ -28,27 +17,122 @@ class Gem:
         self.gemPosition = None
         self.gemColorVector = None  # вектор цветов
 
+    # Возвращает вектор цветов камня в HSV 3 канала
+    def returnVectorHSV3(self):
+        mask = self.__maskCreation()
+        palette = self.__paletteCreation(mask)
+        self.gemColorVector = self.__vectorCreationHSV3(palette)
 
-    def returnVector(self):
+    # Возвращает вектор цветов камня в HSV 2 канала
+    def returnVectorHSV2(self):
+        mask = self.__maskCreation()
+        palette = self.__paletteCreation(mask)
+        self.gemColorVector = self.__vectorCreationHSV2(palette)
+
+    # Возвращает вектор цветов камня в RGB 3 канала
+    def returnVectorRGB3(self):
         # Возвращает вектор цветов камня
         mask = self.__maskCreation()
         palette = self.__paletteCreation(mask)
-        self.gemColorVector = self.__vectorCreation(palette)
+        self.gemColorVector = self.__vectorCreationRGB3(palette)
 
 
+    def __vectorCreationRGB3(self, palette):
+        # Созздает вектор цветов
+        alpha = int(360 / self.numberParts)
+        startAngle = alpha / 2 + 2
+        endAngle = alpha + startAngle
 
-    def __vectorCreation(self, palette):
+        centerY = int(1280 / 2)
+        centerX = int(720 / 2)
+
+        r1 = 50
+        r2 = 200
+        colorVector = []
+
+        colorVector.append('{0}'.format(self.gemId))
+
+        for i in range(self.numberParts):
+            x = int(centerX + r1 * math.sin(((startAngle + endAngle) / 2) * math.pi / 180))
+            y = int(centerY + r1 * math.cos(((startAngle + endAngle) / 2) * math.pi / 180))
+
+            b, g, r = np.uint8(palette[x, y])
+            colorCode = 1000000 * b + 1000 * g + r
+            colorVector.append('{0}'.format(colorCode))
+            startAngle = startAngle + alpha
+            endAngle = endAngle + alpha
+
+        for i in range(self.numberParts):
+            x = int(centerX + r2 * math.sin(((startAngle + endAngle) / 2) * math.pi / 180))
+            y = int(centerY + r2 * math.cos(((startAngle + endAngle) / 2) * math.pi / 180))
+
+            b, g, r = np.uint8(palette[x, y])
+            colorCode = 1000000 * b + 1000 * g + r
+            colorVector.append('{0}'.format(colorCode))
+            startAngle = startAngle + alpha
+            endAngle = endAngle + alpha
+
+        return colorVector
+
+
+    def __vectorCreationHSV2(self, palette):
         # Созздает вектор цветов
         paletHSV = cv2.cvtColor(palette, cv2.COLOR_BGR2HSV)
         alpha = int(360 / self.numberParts)
         startAngle = alpha / 2 + 2
         endAngle = alpha + startAngle
 
-        centerY = int(1920 / 2)
-        centerX = int(1080 / 2)
+        centerY = int(1280 / 2)
+        centerX = int(720 / 2)
 
-        r1 = 150
-        r2 = 350
+        r1 = 50
+        r2 = 200
+        colorVector = []
+
+        colorVector.append('{0}'.format(self.gemId))
+
+        for i in range(self.numberParts):
+            x = int(centerX + r1 * math.sin(((startAngle + endAngle) / 2) * math.pi / 180))
+            y = int(centerY + r1 * math.cos(((startAngle + endAngle) / 2) * math.pi / 180))
+            cv2.circle(palette, (centerY, centerX), 15, (0, 0, 255), 3, cv2.LINE_AA)
+            cv2.circle(palette, (y, x), 15, (255, 255, 255), 3, cv2.LINE_AA)
+            h, s, v = np.uint8(paletHSV[x, y])
+
+            colorCode = 1000 * h + s
+            colorVector.append('{0}'.format(colorCode))
+            startAngle = startAngle + alpha
+            endAngle = endAngle + alpha
+
+        for i in range(self.numberParts):
+            x = int(centerX + r2 * math.sin(((startAngle + endAngle) / 2) * math.pi / 180))
+            y = int(centerY + r2 * math.cos(((startAngle + endAngle) / 2) * math.pi / 180))
+            cv2.circle(palette, (centerY, centerX), 15, (0, 0, 255), 3, cv2.LINE_AA)
+            cv2.circle(palette, (y, x), 15, (255, 255, 255), 3, cv2.LINE_AA)
+            h, s, v = np.uint8(paletHSV[x, y])
+            colorCode = 1000 * h + s
+            colorVector.append('{0}'.format(colorCode))
+            startAngle = startAngle + alpha
+            endAngle = endAngle + alpha
+
+        return colorVector
+
+
+
+    def __vectorCreationHSV3(self, palette):
+        # Созздает вектор цветов
+        width = 1280
+        height = 720
+
+        paletHSV = cv2.cvtColor(palette, cv2.COLOR_BGR2HSV)
+        alpha = int(360 / self.numberParts)
+        startAngle = alpha / 2 + 2
+        endAngle = alpha + startAngle
+
+        centerY = int(width / 2)
+        centerX = int(height / 2)
+
+        r1 = 50
+        r2 = 200
         colorVector = []
 
         colorVector.append('{0}'.format(self.gemId))
@@ -82,13 +166,15 @@ class Gem:
 
     def __paletteCreation(self, gemAndMask):
         # Создает палитру основаных цветов камня
-        palette = np.zeros((1080, 1920, 3), np.uint8)
+        width = 1280
+        height = 720
+        palette = np.zeros((720, 1280, 3), np.uint8)
 
         alpha = int(360 / self.numberParts)
         startAngle = 0
         endAngle = alpha
 
-        center = [int(1920 / 2), int(1080 / 2)]
+        center = [int(1280 / 2), int(720 / 2)]
 
         radius = self.gemSize
         centerX = self.gemPosition[1]
@@ -98,8 +184,8 @@ class Gem:
         r2 = int(radius - radius / 6)
         newR1 = r1
         newR2 = r2
-        axes1 = (400, 400)
-        axes2 = (200, 200)
+        axes1 = (250, 250)
+        axes2 = (100, 100)
 
         for i in range(self.numberParts):
             x = int(centerX + newR1 * math.sin(((startAngle + endAngle) / 2) * math.pi / 180))
@@ -122,6 +208,10 @@ class Gem:
                         (int(b), int(g), int(r)), -1)
             startAngle = startAngle + alpha
             endAngle = endAngle + alpha
+
+        #cv2.imshow("palette", palette)
+        #cv2.waitKey()
+
         return palette
 
 
@@ -129,6 +219,10 @@ class Gem:
     def __maskCreation(self):
         # Создает изображение с маской
         # разбиение изображения на каналы
+        width = 1280
+        height = 720
+        self.gemImage = cv2.resize(self.gemImage, (width, height))
+
         (b, g, r) = cv2.split(self.gemImage)
 
         # Подготовка каждого канала
@@ -148,25 +242,21 @@ class Gem:
         temp = cv2.bitwise_and(b, b, mask=g)
         temp = cv2.bitwise_and(temp, temp, mask=r)
 
-        #cv2.imshow("temp", temp)
-        #cv2.waitKey()
 
         rows = temp.shape[0]
-        mask = np.zeros((1080, 1920, 1), np.uint8)
+        mask = np.zeros((height, width, 1), np.uint8)
 
         # поиск кругов (камня)
-        circles = cv2.HoughCircles(temp, cv2.HOUGH_GRADIENT, 1, rows, param1=150, param2=40, minRadius=200, maxRadius=500)
+        circles = cv2.HoughCircles(temp, cv2.HOUGH_GRADIENT, 1, rows, param1=120, param2=20, minRadius=50, maxRadius=350)
 
-        while(np.any(circles == None)):
-            print("None")
-            temp = temp[83:(1080-83), 150:(1920-150)]
-            temp = cv2.resize(temp, (1920, 1080))
+        for i in circles[0, :]:
+            # draw the outer circle
+            cv2.circle(self.gemImage, (i[0], i[1]), int(i[2]), (0, 255, 0), 2)
+            # draw the center of the circle
+            cv2.circle(self.gemImage, (i[0], i[1]), 2, (0, 0, 255), 3)
 
-            self.gemImage = self.gemImage[83:(1080-83), 150:(1920-150)]
-            self.gemImage = cv2.resize(self.gemImage, (1920, 1080))
-
-            circles = cv2.HoughCircles(temp, cv2.HOUGH_GRADIENT, 1, rows, param1=150, param2=40, minRadius=200,
-                                       maxRadius=500)
+        #cv2.imshow("image", self.gemImage)
+        #cv2.waitKey()
 
         # создание маски по найденному кругу
         circles = np.uint16(np.around(circles))
